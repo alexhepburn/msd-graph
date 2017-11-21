@@ -17,7 +17,7 @@ from bokeh.models import Plot, MultiLine, Circle
 from bokeh.palettes import Spectral4 
 
 
-n= 40000
+n= 20000
 G=nx.Graph()
 edges=[]
 
