@@ -6,18 +6,13 @@ attributes stored in the graph are:
 		  listens for that song
 'capacity' = number of songs users have in common
 '''
+
 import pandas as pd
 import networkx as nx 
 import numpy as np
 from tqdm import *
-from bokeh.io import show, output_file
-from bokeh.plotting import figure
-from bokeh.models.graphs import from_networkx
-from bokeh.models import Plot, MultiLine, Circle
-from bokeh.palettes import Spectral4 
 
-
-n= 20000
+n= 50000
 G=nx.Graph()
 edges=[]
 
@@ -25,7 +20,7 @@ with open("./train_triplets.txt") as f:
     lst = [next(f).strip('\n').split('\t') for x in range(n)]
 
 df = pd.DataFrame(data=lst, columns=['User', 'Song', 'Play Count'])
-
+df['Play Count'] = df['Play Count'].astype(int)
 print("Unique Users: " + str(len(df['User'].unique())))
 print("Unique Songs: " + str(len(df['Song'].unique())))
 
@@ -54,7 +49,8 @@ for user in tqdm(df['User'].unique()):
 					scores_dict[match] = [1, float(s)/lst]
 	for key in scores_dict:
 		s = 1./float(scores_dict[key][1])
-		G.add_edge(user, key, score=s, capacity=scores_dict[key][0])
+		s2 = 1./float(scores_dict[key][0])
+		G.add_edge(user, key, score=s, capacity=s2)
 		edges.append([user, key, s])
 
 nx.write_gml(G, './MSDgraph.gml')

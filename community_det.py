@@ -12,7 +12,7 @@ from bokeh.models.graphs import from_networkx
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models import Plot, MultiLine, Circle
 from bokeh.models import GraphRenderer, Oval
-from bokeh.palettes import Category20c
+from bokeh.palettes import Set3
 
 # Number of triplets used to construct the graph
 n = 20000
@@ -31,34 +31,28 @@ with open("./train_triplets.txt") as f:
 df = pd.DataFrame(data=lst, columns=['User', 'Song', 'Play Count'])
 df['Play Count'] = df['Play Count'].astype(int)
 G = nx.read_gml("./MSDgraph.gml")
+print(len(G.nodes()))
 partition = community.best_partition(G, weight=eval_par)
 num_comm = len(np.unique(list(partition.values())))
-plot = figure(title="MSD User Listens in Common", x_range=(-1.1,1.1), y_range=(-1.1,1.1), 
-	plot_width=800, plot_height=800)
-graph_renderer = from_networkx(G, nx.spring_layout, scale=2, center=(0,0), weight=eval_par)
-
-# List of ids to match ids -> ids in partition to colour code nodes
-ids_dat = graph_renderer.node_renderer.data_source.data["index"]
-
+print(str(num_comm) + ' communities found.')
 # -1 so it will throw out an error and not just colour all the nodes as 
 # belonging to community 0
 song_dict = []
-for i in range(5):
+for i in range(0, 5):
 	d = {}
 	song_dict.append(d)
 
-c = [-1] * len(partition.keys())
+c = {}
 comm_songs = pd.DataFrame(columns=['User', 'Community Song 1', 'Community Song 2', 'Community Song 3',
 	'Community Song 4', 'Community Song 5'], dtype='object')
 save_df = pd.DataFrame(columns=['TrackID', 'Song', 'Artist Name', 'Song Title', 'Community'])
-for i in range(num_comm):
+for i in range(0, num_comm):
+	print("Sorting through community " + str(i))
 	# Match indices from ids_comm to indices in graph and set colour for each node
 	# so that nodes in a community are the same colour
 	ids_comm = [key for key, value in partition.items() if value == i]
-	ind = [j for j, item in enumerate(ids_dat) if item in ids_comm]
-	for indx in ind:
-		c[indx] = Category20c[20][i]
-
+	for ids in ids_comm:
+		c[ids] = Set3[12][i]
 	# Search for popular songs inside communities
 	comm = df[df['User'].isin(ids_comm)].groupby('Song').sum().reset_index().sort_values('Play Count',
 		ascending=False)
@@ -76,9 +70,12 @@ for i in range(num_comm):
 			song_dict[i][user] = song_str
 
 save_df.to_csv('./community_songs.csv', sep=',')
-
-graph_renderer.node_renderer.glyph = Circle(size=7, fill_color="fill_color")
-graph_renderer.node_renderer.data_source.add(c, "fill_color")
+nx.set_node_attributes(G, name='fillcolor', values=c)
+plot = figure(title="MSD User Listens in Common", x_range=(-1.1,1.1), y_range=(-1.1,1.1), 
+	plot_width=800, plot_height=800)
+graph_renderer = from_networkx(G, nx.spring_layout, scale=2, center=(0,0), weight=eval_par)
+graph_renderer.node_renderer.data_source.add(list(c.values()), 'fillcolor')
+graph_renderer.node_renderer.glyph = Circle(size=7, fill_color='fillcolor')
 plot.renderers.append(graph_renderer)
 output_file("community_det.html")
 show(plot)
