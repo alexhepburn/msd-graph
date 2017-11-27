@@ -5,6 +5,7 @@ import networkx as nx
 import community
 import numpy as np
 import pandas as pd
+import statistics
 
 from bokeh.io import show, output_file
 from bokeh.plotting import figure
@@ -30,8 +31,7 @@ with open("./train_triplets.txt") as f:
     lst = [next(f).strip('\n').split('\t') for x in range(n)]
 df = pd.DataFrame(data=lst, columns=['User', 'Song', 'Play Count'])
 df['Play Count'] = df['Play Count'].astype(int)
-G = nx.read_gml("./MSDgraph.gml")
-print(len(G.nodes()))
+G = nx.read_gml("./MSDgraph2.gml")
 partition = community.best_partition(G, weight=eval_par)
 num_comm = len(np.unique(list(partition.values())))
 print(str(num_comm) + ' communities found.')
@@ -73,9 +73,15 @@ save_df.to_csv('./community_songs.csv', sep=',')
 nx.set_node_attributes(G, name='fillcolor', values=c)
 plot = figure(title="MSD User Listens in Common", x_range=(-1.1,1.1), y_range=(-1.1,1.1), 
 	plot_width=800, plot_height=800)
+betweeness = nx.betweenness_centrality(G, weight='capacity')
+width = []
+nodes = G.nodes()
+for n in nodes:
+	width.append(betweeness[n])
 graph_renderer = from_networkx(G, nx.spring_layout, scale=2, center=(0,0), weight=eval_par)
 graph_renderer.node_renderer.data_source.add(list(c.values()), 'fillcolor')
-graph_renderer.node_renderer.glyph = Circle(size=7, fill_color='fillcolor')
+graph_renderer.node_renderer.data_source.add(width, 'width')
+graph_renderer.node_renderer.glyph = Circle(size=7, fill_color='fillcolor', radius='width')
 plot.renderers.append(graph_renderer)
 output_file("community_det.html")
 show(plot)

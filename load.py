@@ -11,8 +11,9 @@ import pandas as pd
 import networkx as nx 
 import numpy as np
 from tqdm import *
+import copy
 
-n= 50000
+n= 20000
 G=nx.Graph()
 edges=[]
 
@@ -23,34 +24,24 @@ df = pd.DataFrame(data=lst, columns=['User', 'Song', 'Play Count'])
 df['Play Count'] = df['Play Count'].astype(int)
 print("Unique Users: " + str(len(df['User'].unique())))
 print("Unique Songs: " + str(len(df['Song'].unique())))
-
 scores_dict = {}
-sd = df.groupby('Song').sum().reset_index()
-# Calculate how many listens each song has and put it into a dictionary
-# in order to normalise the scores with respect to how popular the song is
-for user in tqdm(df['User'].unique()):
-	user_entires = df.loc[df['User'] == user]
-	song_list = list(user_entires['Song'])
-	scores_dict.clear()
-	for song in song_list:
-		user_score = int(user_entires.loc[user_entires['Song'] == song]['Play Count'])
-		song_listens = df.loc[df['Song'] == song]
-		user_list = list(song_listens['User'])
-		if user in user_list:
-			user_list.remove(user)
-		for match in user_list:
-			match_score = list(song_listens.loc[song_listens['User'] == match]['Play Count'])
-			for s in match_score:
-				# If users already have a song in common from before
-				lst = float(sd.loc[sd['Song'] == song]['Play Count'])
-				if match in scores_dict:
-					scores_dict[match] = [scores_dict[match][0] + 1, scores_dict[match][1] + float(s)/lst]
-				else:
-					scores_dict[match] = [1, float(s)/lst]
-	for key in scores_dict:
-		s = 1./float(scores_dict[key][1])
-		s2 = 1./float(scores_dict[key][0])
-		G.add_edge(user, key, score=s, capacity=s2)
-		edges.append([user, key, s])
+songs = df.groupby('Song')
+sd = songs.sum().reset_index()
 
-nx.write_gml(G, './MSDgraph.gml')
+for name, group in tqdm(songs):
+	userlst = list(group['User'])
+	while len(userlst) > 1:
+		user = userlst[0]
+		userlst.remove(user)
+		for u in userlst:
+			if (user, u) in scores_dict:
+				scores_dict[(user, u)] += 1.
+			elif (u, user) in scores_dict:
+				scores_dict[(u, user)] += 1.
+			else:
+				scores_dict[(user, u)] = 1.
+for key in scores_dict:
+	G.add_edge(key[0], key[1], capacity=1/scores_dict[key])
+print('Number of nodes: ' + str(len(G.nodes())))
+print('Number of edges: ' + str(len(G.edges())))
+nx.write_gml(G, './MSDgraph2.gml')
